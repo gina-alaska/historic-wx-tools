@@ -1,0 +1,14 @@
+name: urma
+channels:
+  - conda-forge
+dependencies:
+  - gdal
+  - rasterio
+  - pyproj
+  - matplotlib
+  - jupyter
+  - s3fs
+  - libgdal-grib
+  - ca-certificates
+  - certifi
+  - openssl
