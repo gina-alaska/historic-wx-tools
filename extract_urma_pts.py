@@ -78,6 +78,7 @@ def transform_airport_dict(airport_dict):
 def process_date(args):
     date, gt, transformer, transformed_airport_dict = args
     date_str = date.split('.')[1]
+    print(f"Processing {date_str}...")
     fs = s3fs.S3FileSystem(anon=True)
     with open(f'./{year}/akurma_{date_str}.csv', 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter=' ',
@@ -86,7 +87,6 @@ def process_date(args):
         
         for hour in fs.glob(date + "/akurma*2dvaranl*"):
             hour_str = hour.split(".")[2][1:3]
-            print(f"Processing {date_str} at {hour}...")
 
             ds = gdal.Open('/vsis3/' + hour)
             
@@ -104,7 +104,13 @@ def process_date(args):
                     pass
 
 if __name__ == "__main__":
-    year=2020
+    if len(sys.argv) != 2:
+        print("Usage: python script.py <year>")
+        sys.exit(1)
+        
+    year = sys.argv[1]
+    
+    os.makedirs(str(year), exist_ok=True)
     fs = s3fs.S3FileSystem(anon=True)
     s3_path = 'noaa-urma-pds'
     dates = sorted(fs.glob(s3_path + f"/akurma.{year}*"))
