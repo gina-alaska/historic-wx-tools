@@ -84,7 +84,7 @@ for key in airport_dict:
     lat, lon = airport_dict[key]
     airport_dict[key] = (lat, lon, *transform_to_ds(gt, transformer, lat, lon))
 
-for date in dates[:1]:
+for date in dates:
     date_str = date.split('.')[1]
     with open(f'./akurma_{date_str}.csv', 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter=' ',
@@ -103,8 +103,10 @@ for date in dates[:1]:
             for i in range(1, ds.RasterCount + 1):
                 band = ds.GetRasterBand(i)
                 print(f"Getting values from Band {i}: {band.GetMetadata()['GRIB_COMMENT']}")
-                for key, value in islice(airport_dict.items(), 30):
-                    print(key, value)
-                    pixel_value = extract_point_value(band, value[2], value[3], transform=False)
-                    writer.writerow([date_str, hour_str, key, value[0], value[1], var_codes[band.GetMetadata()['GRIB_COMMENT']], pixel_value])
-
+                try:
+                    if var_codes[band.GetMetadata()['GRIB_COMMENT']]:
+                        for key, value in airport_dict.items():
+                            pixel_value = extract_point_value(band, value[2], value[3], transform=False)
+                            writer.writerow([date_str, hour_str, key, value[0], value[1], var_codes[band.GetMetadata()['GRIB_COMMENT']], pixel_value])
+                except KeyError:
+                    pass
