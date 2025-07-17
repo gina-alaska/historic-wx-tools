@@ -3,10 +3,10 @@ import sys
 from pathlib import Path
 import csv
 from itertools import islice
+from concurrent.futures import ProcessPoolExecutor
 
 import s3fs
 from osgeo import gdal
-import matplotlib.pyplot as plt
 from pyproj import CRS, Transformer
 
 os.environ["AWS_NO_SIGN_REQUEST"] = "YES"
@@ -29,17 +29,17 @@ var_codes = {
     'Total cloud cover [%]': 'tcc'
 }
 
-airport_dict = {}
+def create_airport_dict(csv_path='./ak_airport_lat_lon.csv'):
+    airport_dict = {}
 
-with open('./ak_airport_lat_lon.csv') as airport_csv:
-    reader = csv.reader(airport_csv, delimiter=',', quotechar='|')
-    next(reader)
-    for row in reader:
-        airport, lat, lon = row
-        if airport and lat and lon:
-            airport_dict[airport] = (lat, lon)
-            
-year=2019
+    with open(csv_path) as airport_csv:
+        reader = csv.reader(airport_csv, delimiter=',', quotechar='|')
+        next(reader)
+        for row in reader:
+            airport, lat, lon = row
+            if airport and lat and lon:
+                airport_dict[airport] = (lat, lon)
+    return airport_dict
 
 def make_transformer(ds):
     print("Creating transformer")
@@ -65,28 +65,21 @@ def extract_point_value(band, lat, lon, transform=True):
         px, py = transform_to_ds(gt, transformer, lat, lon)
     else:
         px, py = lat, lon
-    #band = ds.GetRasterBand(3)
     value = band.ReadAsArray(px, py, 1, 1)[0, 0]
     
     return value
 
-fs = s3fs.S3FileSystem(anon=True)
+def transform_airport_dict(airport_dict):
+    for key in airport_dict:
+        lat, lon = airport_dict[key]
+        airport_dict[key] = (lat, lon, *transform_to_ds(gt, transformer, lat, lon))
+    return airport_dict
 
-s3_path = 'noaa-urma-pds'
-
-dates = sorted(fs.glob(s3_path + f"/akurma.{year}*"))
-
-template_ds = gdal.Open('/vsis3/' + fs.ls(dates[0])[0])
-
-gt, transformer = make_transformer(template_ds)
-
-for key in airport_dict:
-    lat, lon = airport_dict[key]
-    airport_dict[key] = (lat, lon, *transform_to_ds(gt, transformer, lat, lon))
-
-for date in dates:
+def process_date(args):
+    date, gt, transformer, transformed_airport_dict = args
     date_str = date.split('.')[1]
-    with open(f'./akurma_{date_str}.csv', 'w') as csvfile:
+    fs = s3fs.S3FileSystem(anon=True)
+    with open(f'./{year}/akurma_{date_str}.csv', 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter=' ',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
         writer.writerow(['Date', 'Hour', 'Airport', 'Latitude', 'Longitude', 'Paramter', 'Value'])
@@ -102,11 +95,23 @@ for date in dates:
                 
             for i in range(1, ds.RasterCount + 1):
                 band = ds.GetRasterBand(i)
-                print(f"Getting values from Band {i}: {band.GetMetadata()['GRIB_COMMENT']}")
                 try:
                     if var_codes[band.GetMetadata()['GRIB_COMMENT']]:
-                        for key, value in airport_dict.items():
+                        for key, value in transformed_airport_dict.items():
                             pixel_value = extract_point_value(band, value[2], value[3], transform=False)
                             writer.writerow([date_str, hour_str, key, value[0], value[1], var_codes[band.GetMetadata()['GRIB_COMMENT']], pixel_value])
                 except KeyError:
                     pass
+
+if __name__ == "__main__":
+    year=2020
+    fs = s3fs.S3FileSystem(anon=True)
+    s3_path = 'noaa-urma-pds'
+    dates = sorted(fs.glob(s3_path + f"/akurma.{year}*"))
+    template_ds = gdal.Open('/vsis3/' + fs.ls(dates[0])[0])
+    gt, transformer = make_transformer(template_ds)
+    airport_dict = create_airport_dict()
+    transformed_airport_dict = transform_airport_dict(airport_dict)
+    args_list = [(date, gt, transformer, transformed_airport_dict) for date in dates]
+    with ProcessPoolExecutor(max_workers=8) as executor:
+        executor.map(process_date, args_list)
