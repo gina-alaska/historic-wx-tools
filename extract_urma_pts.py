@@ -54,6 +54,14 @@ def create_airport_dict(csv_path='./ak_airport_lat_lon.csv'):
                 airport_dict[airport] = (lat, lon)
     return airport_dict
 
+def find_hourly_files(date_s3_path, fs):
+    hourly_paths = fs.glob(date_s3_path + "/akurma*2dvaranl*")
+    return hourly_paths
+
+def open_ds_from_s3(s3_path):
+    with gdal.Open('/vsis3/' + s3_path) as ds:
+        return ds
+
 def make_transformer(ds):
     print("Creating transformer")
     proj_wkt = ds.GetProjection()
@@ -108,14 +116,14 @@ def process_date(args: ProcessDateArgs):
                                 quotechar='|', quoting=csv.QUOTE_MINIMAL)
             writer.writerow(['Date', 'Hour', 'Airport', 'Latitude', 'Longitude', 'Paramter', 'Value'])
             
-            hourly_files = fs.glob(date_s3_path + "/akurma*2dvaranl*")
+            hourly_files = fs.glob(date_s3_path + "/akurma*2dvaranl*.grb2")
             
             if len(hourly_files) != 24:
                 expected_hours = {f"{h:02d}" for h in range(24)}
                 actual_hours = set([hour.split(".")[2][1:3] for hour in hourly_files])
-                logging.info(f"Hour(s) missing from {date_s3_path}: {expected_hours - actual_hours}")
+                logging.info(f"Hour(s) missing from {date_s3_path}: {sorted(expected_hours - actual_hours)}")
             
-            for hour in fs.glob(date_s3_path + "/akurma*2dvaranl*"):
+            for hour in hourly_files:
                 hour_str = hour.split(".")[2][1:3]
 
                 with gdal.Open('/vsis3/' + hour) as ds:
