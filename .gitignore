@@ -1,2 +1,6 @@
 *.csv
 *.zip
+!lamp_stations_AK.csv
+!ak_airport_lat_lon.csv
+*.log
+__pycache__
