@@ -1,9 +1,10 @@
 import argparse
 
+
 def parse_lamp_guidance_file(input_file_path, output_csv_path):
     import csv
 
-    with open(input_file_path, 'r') as file:
+    with open(input_file_path, "r") as file:
         lines = [line.strip() for line in file if line.strip()]
 
     data = []
@@ -25,7 +26,7 @@ def parse_lamp_guidance_file(input_file_path, output_csv_path):
                 if var_line:
                     var = var_line[:3]
                     trimmed = var_line[4:]
-                    vars[var] = [trimmed[i:i+3] for i in range(0, len(trimmed), 3)]
+                    vars[var] = [trimmed[i : i + 3] for i in range(0, len(trimmed), 3)]
                 next_line += 1
 
             for j in range(len(hours)):
@@ -33,7 +34,7 @@ def parse_lamp_guidance_file(input_file_path, output_csv_path):
                     "Station": station,
                     "Date": date,
                     "Time": time,
-                    "FxTime": hours[j]
+                    "FxTime": hours[j],
                 }
                 for var, values in vars.items():
                     row[var] = values[j] if j < len(values) else None
@@ -46,15 +47,20 @@ def parse_lamp_guidance_file(input_file_path, output_csv_path):
     all_vars = set()
     for row in data:
         all_vars.update(row.keys())
-    fieldnames = ["Station", "Date", "Time", "FxTime"] + sorted(v for v in all_vars if v not in {"Station", "Date", "Time", "FxTime"})
+    fieldnames = ["Station", "Date", "Time", "FxTime"] + sorted(
+        v for v in all_vars if v not in {"Station", "Date", "Time", "FxTime"}
+    )
 
-    with open(output_csv_path, 'w', newline='') as csvfile:
+    with open(output_csv_path, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(data)
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Parse LAMP guidance file and export to CSV.")
+    parser = argparse.ArgumentParser(
+        description="Parse LAMP guidance file and export to CSV."
+    )
     parser.add_argument("input_file", help="Path to the input text file")
     parser.add_argument("output_file", help="Path to the output CSV file")
     args = parser.parse_args()
