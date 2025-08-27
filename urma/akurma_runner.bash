@@ -1,8 +1,8 @@
 #!/bin/bash
 
-mamba activate urma
+conda activate urma
 
-for year in 2022 2023 2024; do
+for year in 2019 2020 2021 2022 2023 2024; do
     echo "Processing year $year..."
 
     if python extract_urma_pts.py "$year"; then

@@ -1,5 +1,4 @@
 import argparse
-import sys
 
 def parse_lamp_guidance_file(input_file_path, output_csv_path):
     import csv
@@ -10,7 +9,7 @@ def parse_lamp_guidance_file(input_file_path, output_csv_path):
     data = []
     i = 0
     while i < len(lines):
-        if "GFS LAMP GUIDANCE" in lines[i]:
+        if "GFS LAMP" in lines[i]:
             station_info = lines[i].split()
             station = station_info[0]
             date = station_info[-3]
@@ -21,7 +20,7 @@ def parse_lamp_guidance_file(input_file_path, output_csv_path):
 
             vars = {}
             next_line = 2
-            while i + next_line < len(lines) and "GFS LAMP GUIDANCE" not in lines[i + next_line]:
+            while i + next_line < len(lines) and "GFS LAMP" not in lines[i + next_line]:
                 var_line = lines[i + next_line]
                 if var_line:
                     var = var_line[:3]
